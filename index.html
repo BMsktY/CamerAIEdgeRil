@@ -2,11 +2,14 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Deteksi Objek AI - Meja, Laptop, Phone, Clock, dll.</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>CamerAI</title>
 
-    <!-- Mencegah error favicon.ico 404 -->
     <link rel="icon" href="data:,">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
     <!-- CDN TensorFlow.js & Model COCO-SSD -->
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0"></script>
@@ -14,345 +17,604 @@
 
     <style>
         :root {
-            --bg-card: #1e1e1e;
-            --border: #333333;
-            --text-main: #ffffff;
-            --text-muted: #aaaaaa;
-            --primary: #10b981;
+            --bg-dark: #07080b;
+            --bg-card: rgba(18, 21, 30, 0.92);
+            --bg-card-border: rgba(255, 255, 255, 0.08);
+            --accent-green: #10b981;
+            --accent-green-glow: rgba(16, 185, 129, 0.35);
+            --accent-cyan: #06b6d4;
+            --danger: #ef4444;
+            --text-main: #f8fafc;
+            --text-sub: #94a3b8;
+            --radius-lg: 22px;
+            --radius-md: 14px;
         }
 
         * {
             box-sizing: border-box;
             margin: 0;
             padding: 0;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'Plus Jakarta Sans', -apple-system, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
         }
 
         body {
-            background-color: #121212;
+            background-color: var(--bg-dark);
             color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            overflow-x: hidden;
+            padding-top: env(safe-area-inset-top, 6px);
+            padding-bottom: env(safe-area-inset-bottom, 12px);
+            padding-left: 6px;
+            padding-right: 6px;
+        }
+
+        .app-container {
+            width: 100%;
+            max-width: 480px;
             display: flex;
             flex-direction: column;
+            gap: 10px;
+        }
+
+        .app-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 4px 6px;
+        }
+
+        .brand-logo {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .brand-icon {
+            width: 34px;
+            height: 34px;
+            border-radius: 10px;
+            background: linear-gradient(135deg, var(--accent-green), var(--accent-cyan));
+            display: flex;
             align-items: center;
             justify-content: center;
-            min-height: 100vh;
-            padding: 20px;
+            color: #000;
+            font-size: 14px;
+            box-shadow: 0 4px 12px var(--accent-green-glow);
         }
 
-        .container {
-            width: 100%;
-            max-width: 640px;
+        .brand-title {
+            font-size: 16px;
+            font-weight: 800;
+            background: linear-gradient(90deg, #fff, #94a3b8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .status-pill-group {
+            display: flex;
+            gap: 6px;
+        }
+
+        .status-pill {
+            padding: 4px 9px;
+            border-radius: 20px;
+            font-size: 10px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .status-pill.online { background: rgba(16, 185, 129, 0.15); color: #34d399; border-color: rgba(52, 211, 153, 0.3); }
+        .status-pill.demo { background: rgba(245, 158, 11, 0.15); color: #fbbf24; border-color: rgba(251, 191, 36, 0.3); }
+
+        .pulse-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background-color: currentColor;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 0.4; transform: scale(0.8); }
+            50% { opacity: 1; transform: scale(1.2); }
+            100% { opacity: 0.4; transform: scale(0.8); }
+        }
+
+        .main-layout {
             display: flex;
             flex-direction: column;
-            gap: 15px;
-        }
-
-        /* Status Badges */
-        .status-container {
-            display: flex;
             gap: 10px;
-            flex-wrap: wrap;
+            width: 100%;
         }
 
-        .status-badge {
-            padding: 6px 12px;
-            border-radius: 20px;
-            font-size: 13px;
-            font-weight: bold;
-            text-align: center;
-        }
-
-        .status-badge.online { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
-        .status-badge.demo { background-color: #fff3cd; color: #856404; border: 1px solid #ffeeba; }
-
-        /* Camera Stack Container (Layer 1, 2, 3) */
-        #camera-container {
+        /* Tampilan Kamera Memenuhi Layar HP (Native Camera Ratio 9:16) */
+        .camera-card {
             position: relative;
             width: 100%;
-            height: 380px;
-            background: #000000;
-            border-radius: 12px;
+            aspect-ratio: 9 / 14; /* Proporsi jangkung mendekati full screen HP */
+            max-height: 520px;
+            background: #000;
+            border-radius: var(--radius-lg);
             overflow: hidden;
-            box-shadow: 0 8px 16px rgba(0,0,0,0.5);
+            border: 1px solid var(--bg-card-border);
+            box-shadow: 0 12px 36px rgba(0, 0, 0, 0.7);
+            touch-action: none;
         }
 
-        /* Layer 1: Stream Video */
         #video {
             width: 100%;
             height: 100%;
             object-fit: cover;
             display: block;
+            transition: transform 0.2s ease-out;
         }
 
-        /* Layer 2: Bounding Box Canvas */
         #canvas {
             position: absolute;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
+            pointer-events: none;
         }
 
-        /* Layer 3: Overlay Loading/Error */
+        .camera-overlay-top {
+            position: absolute;
+            top: 12px;
+            left: 12px;
+            right: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 4;
+        }
+
+        .camera-overlay-bottom {
+            position: absolute;
+            bottom: 12px;
+            left: 0;
+            right: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 12px;
+            z-index: 4;
+        }
+
+        .fps-badge {
+            background: rgba(0, 0, 0, 0.65);
+            backdrop-filter: blur(8px);
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 700;
+            color: #38bdf8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .circle-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: rgba(0, 0, 0, 0.65);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            cursor: pointer;
+            transition: transform 0.15s, background-color 0.2s;
+        }
+
+        .circle-btn:active { transform: scale(0.90); }
+
+        /* Zoom Badge Button */
+        .zoom-btn {
+            background: rgba(0, 0, 0, 0.65);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #fff;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 800;
+            cursor: pointer;
+        }
+
+        /* Shutter Snapshot Button */
+        .shutter-btn {
+            width: 52px;
+            height: 52px;
+            border-radius: 50%;
+            background: #ffffff;
+            border: 4px solid rgba(255, 255, 255, 0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #000;
+            font-size: 18px;
+            box-shadow: 0 0 16px rgba(255, 255, 255, 0.5);
+            cursor: pointer;
+            transition: transform 0.15s;
+        }
+        .shutter-btn:active { transform: scale(0.88); }
+
+        /* Flash Snap Effect */
+        .camera-flash-effect {
+            position: absolute;
+            inset: 0;
+            background: white;
+            opacity: 0;
+            pointer-events: none;
+            z-index: 20;
+            transition: opacity 0.15s ease-out;
+        }
+
         #overlay-msg {
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.85);
+            inset: 0;
+            background: rgba(7, 8, 11, 0.92);
+            backdrop-filter: blur(12px);
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            color: white;
-            z-index: 5;
-            gap: 10px;
-            text-align: center;
+            z-index: 10;
+            gap: 12px;
             padding: 20px;
+            text-align: center;
         }
 
-        .spinner {
-            width: 40px;
-            height: 40px;
-            border: 4px solid rgba(255, 255, 255, 0.3);
+        .loader-ring {
+            width: 42px;
+            height: 42px;
+            border: 4px solid rgba(16, 185, 129, 0.15);
+            border-top-color: var(--accent-green);
             border-radius: 50%;
-            border-top-color: #ffffff;
-            animation: spin 1s ease-in-out infinite;
+            animation: spin 1s linear infinite;
         }
 
-        @keyframes spin {
-            to { transform: rotate(360deg); }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .dashboard-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            width: 100%;
         }
 
-        /* Control Buttons */
-        .controls {
+        .action-bar {
             display: flex;
             gap: 10px;
         }
 
-        button {
+        .btn {
             flex: 1;
-            padding: 12px;
-            font-size: 15px;
-            font-weight: bold;
+            height: 48px;
+            border-radius: var(--radius-md);
             border: none;
-            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
             cursor: pointer;
             transition: all 0.2s;
         }
 
-        button:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
+        .btn:active { transform: scale(0.98); }
+
+        .btn-camera { background: rgba(255, 255, 255, 0.08); color: #fff; border: 1px solid var(--bg-card-border); }
+        .btn-ai { background: linear-gradient(135deg, var(--accent-green), var(--accent-cyan)); color: #000; box-shadow: 0 4px 16px var(--accent-green-glow); }
+        .btn-danger { background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.4); }
+
+        .filter-scroll {
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            padding-bottom: 2px;
+            scroll-snap-type: x mandatory;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+        }
+        .filter-scroll::-webkit-scrollbar { display: none; }
+
+        .chip {
+            padding: 8px 14px;
+            border-radius: 20px;
+            background: var(--bg-card);
+            border: 1px solid var(--bg-card-border);
+            color: var(--text-sub);
+            font-size: 11px;
+            font-weight: 600;
+            white-space: nowrap;
+            cursor: pointer;
+            scroll-snap-align: start;
+            display: flex;
+            align-items: center;
+            gap: 6px;
         }
 
-        .btn-start { background-color: #28a745; color: white; }
-        .btn-start:hover:not(:disabled) { background-color: #218838; }
+        .chip.active {
+            background: rgba(16, 185, 129, 0.2);
+            color: #34d399;
+            border-color: rgba(52, 211, 153, 0.4);
+        }
 
-        .btn-stop { background-color: #dc3545; color: white; }
-        .btn-stop:hover:not(:disabled) { background-color: #c82333; }
-
-        .btn-ai { background-color: #17a2b8; color: white; }
-        .btn-ai:hover:not(:disabled) { background-color: #138496; }
-
-        .btn-danger { background-color: #dc3545; color: white; }
-        .btn-success { background-color: #28a745; color: white; }
-
-        /* Log Section UI */
-        #data-section {
-            flex: 1;
+        .feed-card {
             background: var(--bg-card);
-            border-radius: 12px;
+            border: 1px solid var(--bg-card-border);
+            border-radius: var(--radius-lg);
+            padding: 12px;
             display: flex;
             flex-direction: column;
-            overflow: hidden;
-            border: 1px solid var(--border);
-            min-height: 180px;
-            max-height: 250px;
+            gap: 10px;
+            backdrop-filter: blur(12px);
         }
 
-        #data-header {
-            padding: 12px 16px;
-            border-bottom: 1px solid var(--border);
-            font-weight: 700;
-            font-size: 14px;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
+        .feed-header {
             display: flex;
             justify-content: space-between;
+            align-items: center;
+        }
+
+        .feed-title {
+            font-size: 12px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .clear-btn {
+            background: none;
+            border: none;
+            color: var(--text-sub);
+            font-size: 11px;
+            font-weight: 600;
+            padding: 4px 8px;
+            cursor: pointer;
         }
 
         #data-list {
-            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            max-height: 180px;
             overflow-y: auto;
-            padding: 8px;
+            -webkit-overflow-scrolling: touch;
         }
 
         .log-item {
-            padding: 10px 12px;
-            background: #2a2a2a;
-            border-radius: 8px;
-            margin-bottom: 8px;
-            border-left: 4px solid var(--primary);
-            font-size: 13px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-left: 3.5px solid var(--accent-green);
+            padding: 8px 10px;
+            border-radius: var(--radius-md);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
 
-        .log-item .time {
-            color: var(--text-muted);
-            font-size: 11px;
-            display: block;
-            margin-bottom: 4px;
-        }
+        .log-item-time { font-size: 9px; color: var(--text-sub); margin-bottom: 2px; }
+        .log-item-text { font-size: 11px; font-weight: 700; }
+        .log-tag { background: rgba(16, 185, 129, 0.12); color: var(--accent-green); font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 6px; }
 
-        .log-item .items {
-            font-weight: 600;
-            color: var(--text-main);
-        }
-
-        .empty-state {
-            text-align: center;
-            color: var(--text-muted);
-            padding: 30px;
-            font-size: 14px;
-        }
+        .empty-state { text-align: center; padding: 18px; color: var(--text-sub); font-size: 11px; }
     </style>
 </head>
 <body>
 
-    <div class="container">
-        <!-- Badges Status -->
-        <div class="status-container">
-            <div id="db-status" class="status-badge demo">DB: DEMO MODE</div>
-            <div id="ai-status" class="status-badge demo">AI: MEMUAT MODEL...</div>
-        </div>
-
-        <!-- Camera Stack Container -->
-        <div id="camera-container">
-            <!-- Layer 1: Video -->
-            <video id="video" autoplay playsinline muted></video>
-
-            <!-- Layer 2: Canvas -->
-            <canvas id="canvas"></canvas>
-
-            <!-- Layer 3: Overlay Loading -->
-            <div id="overlay-msg">
-                <div class="spinner"></div>
-                <p id="overlay-text">Memuat Model AI (COCO-SSD)...</p>
-                <small id="overlay-subtext">Mengunduh bobot model. Mohon tunggu.</small>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="brand-logo">
+                <div class="brand-icon"><i class="fa-solid fa-camera"></i></div>
+                <div class="brand-title">CamerAI</div>
             </div>
-        </div>
-
-        <!-- Tombol Kontrol Kamera & AI -->
-        <div class="controls">
-            <button class="btn-start" id="btn-start">Nyalakan Kamera</button>
-            <button class="btn-stop" id="btn-stop">Matikan Kamera</button>
-        </div>
-        <div class="controls">
-            <button class="btn-ai" id="btn-ai" disabled>Start AI</button>
-        </div>
-
-        <!-- Log UI Deteksi Real-time -->
-        <div id="data-section">
-            <div id="data-header">
-                <span>Detected Objects Log</span>
-                <span id="log-count">0 items</span>
+            <div class="status-pill-group">
+                <div id="db-status" class="status-pill demo"><span class="pulse-dot"></span>DEMO DB</div>
+                <div id="ai-status" class="status-pill demo"><span class="pulse-dot"></span>Menghubungkan AI</div>
             </div>
-            <div id="data-list">
-                <div class="empty-state">Menunggu deteksi objek...</div>
+        </header>
+
+        <div class="main-layout">
+            <!-- Kamera Viewport Smartphone -->
+            <div class="camera-card" id="camera-frame">
+                <div class="camera-flash-effect" id="flash-overlay"></div>
+
+                <!-- Kontrol Atas Kamera -->
+                <div class="camera-overlay-top">
+                    <div class="fps-badge" id="fps-counter">0 FPS</div>
+                    <div style="display: flex; gap: 8px;">
+                        <button class="circle-btn" id="btn-torch" title="Senter">
+                            <i class="fa-solid fa-bolt" id="torch-icon"></i>
+                        </button>
+                        <button class="circle-btn" id="btn-tts" title="Suara Objek">
+                            <i class="fa-solid fa-comment-dots" id="tts-icon"></i>
+                        </button>
+                        <button class="circle-btn" id="btn-toggle-sound" title="Suara Beep">
+                            <i class="fa-solid fa-volume-xmark" id="sound-icon"></i>
+                        </button>
+                        <button class="circle-btn" id="btn-flip-camera" title="Ganti Kamera">
+                            <i class="fa-solid fa-camera-rotate"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Kontrol Bawah Kamera (Zoom & Shutter Snapshot) -->
+                <div class="camera-overlay-bottom">
+                    <button class="zoom-btn" id="btn-zoom-toggle">1.0x</button>
+                    <button class="shutter-btn" id="btn-shutter" title="Ambil Foto Snapshot">
+                        <i class="fa-solid fa-aperture"></i>
+                    </button>
+                </div>
+
+                <video id="video" autoplay playsinline muted></video>
+                <canvas id="canvas"></canvas>
+
+                <div id="overlay-msg">
+                    <div class="loader-ring"></div>
+                    <div style="font-weight: 700; font-size: 14px;" id="overlay-text">Memuat Model AI...</div>
+                    <div style="font-size: 11px; color: var(--text-sub);" id="overlay-subtext">Mengunduh neural network...</div>
+                </div>
+            </div>
+
+            <!-- Panel Tombol & Kontrol -->
+            <div class="dashboard-panel">
+                <div class="action-bar">
+                    <button class="btn btn-camera" id="btn-camera">
+                        <i class="fa-solid fa-video"></i>
+                        <span id="txt-camera">Kamera</span>
+                    </button>
+                    <button class="btn btn-ai" id="btn-ai" disabled>
+                        <i class="fa-solid fa-wand-magic-sparkles"></i>
+                        <span id="txt-ai">Scan AI</span>
+                    </button>
+                </div>
+
+                <div class="filter-scroll">
+                    <button class="chip active" data-filter="all"><i class="fa-solid fa-border-all"></i> Semua Objek</button>
+                    <button class="chip" data-filter="furniture"><i class="fa-solid fa-couch"></i> Perabotan</button>
+                    <button class="chip" data-filter="electronics"><i class="fa-solid fa-bolt"></i> Elektronik</button>
+                    <button class="chip" data-filter="materials"><i class="fa-solid fa-box"></i> Kardus & Kabel</button>
+                </div>
+
+                <div class="feed-card">
+                    <div class="feed-header">
+                        <div class="feed-title">
+                            <i class="fa-solid fa-list-check" style="color: var(--accent-green);"></i> Log Pemindaian Real-Time
+                        </div>
+                        <button class="clear-btn" id="btn-clear-logs"><i class="fa-solid fa-trash-can"></i> Hapus</button>
+                    </div>
+                    <div id="data-list">
+                        <div class="empty-state">
+                            <i class="fa-solid fa-radar" style="font-size: 20px; color: var(--text-sub);"></i>
+                            <div style="margin-top: 6px;">Nyalakan kamera & AI untuk mulai deteksi</div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- SCRIPT FIREBASE & OBJECT DETECTION AI -->
+    <!-- Script JavaScript / Logic & Feature Integrations -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
         import { getFirestore, collection, addDoc, query, orderBy, limit, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-        // ==========================================
-        // 1. CLASS MOCK FIRESTORE (OFFLINE FALLBACK)
-        // ==========================================
+        // Mock Firestore untuk Offline / Demo Storage
         class MockFirestore {
             constructor() {
                 this.data = JSON.parse(localStorage.getItem('mock_inventory_db') || '[]');
                 this.listeners = [];
             }
-
             collection() { return this; }
-
             async add(payload) {
-                const doc = {
-                    ...payload,
-                    id: Date.now().toString(),
-                    timestamp: new Date().toISOString()
-                };
+                const doc = { ...payload, id: Date.now().toString(), timestamp: new Date().toISOString() };
                 this.data.unshift(doc);
                 if (this.data.length > 50) this.data.pop();
                 localStorage.setItem('mock_inventory_db', JSON.stringify(this.data));
                 this.listeners.forEach(cb => cb(this.data));
                 return Promise.resolve();
             }
-
-            orderBy() { return this; }
-            limit() { return this; }
-
-            onSnapshot(cb) {
-                this.listeners.push(cb);
-                cb(this.data);
-                return () => {};
-            }
+            onSnapshot(cb) { this.listeners.push(cb); cb(this.data); return () => {}; }
+            clear() { this.data = []; localStorage.removeItem('mock_inventory_db'); this.listeners.forEach(cb => cb(this.data)); }
         }
 
-        // ==========================================
-        // 2. VARIABEL GLOBAL & STATE
-        // ==========================================
         let model = null;
         let isCameraOn = false;
         let isAIDetecting = false;
+        let facingMode = 'environment';
+        let soundEnabled = false;
+        let ttsEnabled = false;
+        let torchOn = false;
+        let videoTrack = null;
+        let activeCategory = 'all';
+
+        let zoomLevel = 1.0;
+        let lastSpeechTime = 0;
+
         let lastSaveTime = 0;
-        const SAVE_THROTTLE_MS = 3000; // Throttling: Simpan maksimal tiap 3 detik
+        const SAVE_THROTTLE_MS = 3000;
+
+        let frameCount = 0;
+        let lastFpsTime = Date.now();
 
         const video = document.getElementById('video');
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
+
         const overlayMsg = document.getElementById('overlay-msg');
         const overlayText = document.getElementById('overlay-text');
         const overlaySubtext = document.getElementById('overlay-subtext');
-        
+
         const dbStatusEl = document.getElementById('db-status');
         const aiStatusEl = document.getElementById('ai-status');
+        const fpsCounter = document.getElementById('fps-counter');
+
+        const btnCamera = document.getElementById('btn-camera');
         const btnAI = document.getElementById('btn-ai');
+        const txtCamera = document.getElementById('txt-camera');
+        const txtAI = document.getElementById('txt-ai');
 
-        // DAFTAR BENDA YANG DIDETEKSI (Meja, Laptop, Phone, Clock, Mouse, Book, Glass/Cup, Chair, TV/Computer, dll.)
-        const TARGET_CLASSES = [
-            'laptop', 'tv', 'cell phone', 'mouse', 'keyboard', 
-            'book', 'clock', 'cup', 'bottle', 'wine glass', 
-            'dining table', 'chair', 'person', 'scissors', 'remote'
-        ];
-
-        // Pemetaan Terjemahan Nama Benda Ke Bahasa Indonesia untuk Tampilan
-        const CLASS_TRANSLATIONS = {
-            'laptop': 'Laptop',
-            'tv': 'Komputer / Monitor',
-            'cell phone': 'Smartphone',
-            'mouse': 'Mouse',
-            'keyboard': 'Keyboard',
-            'book': 'Buku / Catatan',
-            'clock': 'Jam',
-            'cup': 'Cangkir / Gelas',
-            'bottle': 'Botol',
-            'wine glass': 'Gelas Kaca',
-            'dining table': 'Meja',
-            'chair': 'Kursi',
-            'person': 'Orang',
-            'scissors': 'Gunting / Alat Tulis',
-            'remote': 'Remote / Aksesori Kecil'
+        const CATEGORY_MAP = {
+            all: [],
+            furniture: ['chair', 'couch', 'dining table', 'bed', 'refrigerator', 'suitcase', 'book'],
+            electronics: ['tv', 'microwave', 'refrigerator', 'laptop', 'cell phone', 'remote', 'keyboard', 'mouse'],
+            materials: ['scissors', 'mouse', 'book', 'laptop', 'dining table', 'suitcase', 'bottle', 'cup']
         };
 
-        // ==========================================
-        // 3. KONFIGURASI DATABASE
-        // ==========================================
+        const CLASS_TRANSLATIONS = {
+            'chair': 'Kursi', 'couch': 'Sofa', 'dining table': 'Meja', 'bed': 'Tempat Tidur',
+            'refrigerator': 'Kulkas', 'tv': 'TV / Display', 'microwave': 'Microwave',
+            'book': 'Buku', 'suitcase': 'Koper / Box', 'scissors': 'Gunting', 'mouse': 'Mouse',
+            'remote': 'Remote', 'laptop': 'Laptop', 'cell phone': 'Smartphone',
+            'keyboard': 'Keyboard', 'clock': 'Jam', 'cup': 'Gelas', 'bottle': 'Botol', 'person': 'Orang'
+        };
+
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        function playDetectionBeep() {
+            if (!soundEnabled) return;
+            try {
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(880, audioCtx.currentTime);
+                gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.15);
+                osc.connect(gain); gain.connect(audioCtx.destination);
+                osc.start(); osc.stop(audioCtx.currentTime + 0.15);
+            } catch (e) {}
+        }
+
+        // Fitur Suara Text-To-Speech Objek
+        function speakDetectedObject(text) {
+            if (!ttsEnabled || !('speechSynthesis' in window)) return;
+            const now = Date.now();
+            if (now - lastSpeechTime < 4000) return; // Mencegah penumpukan suara
+            
+            window.speechSynthesis.cancel();
+            const utterance = new SpeechSynthesisUtterance(`${text} terdeteksi`);
+            utterance.lang = 'id-ID';
+            utterance.rate = 1.0;
+            window.speechSynthesis.speak(utterance);
+            lastSpeechTime = now;
+        }
+
         const firebaseConfig = {
             apiKey: "AIzaSyDn_QM2U6k2WHucsqIWbQZU5gpjScm7IpY",
             authDomain: "expense-tracker-mahasisw-3a4e1.firebaseapp.com",
@@ -362,9 +624,7 @@
             appId: "1:295980348188:web:e0168747f62f9315bc80d9"
         };
 
-        let db;
-        let collectionRef;
-        let isMockMode = true;
+        let db, collectionRef, isMockMode = true;
 
         if (firebaseConfig.apiKey && firebaseConfig.projectId) {
             try {
@@ -372,42 +632,31 @@
                 db = getFirestore(app);
                 collectionRef = collection(db, "inventory");
                 isMockMode = false;
-                dbStatusEl.textContent = "DB: FIREBASE ONLINE";
-                dbStatusEl.className = "status-badge online";
-            } catch (e) {
-                console.error("Firebase init error", e);
-            }
+                dbStatusEl.innerHTML = `<span class="pulse-dot"></span>FIREBASE`;
+                dbStatusEl.className = "status-pill online";
+            } catch (e) {}
         }
 
         if (isMockMode) {
             db = new MockFirestore();
             collectionRef = db;
-            dbStatusEl.textContent = "DB: DEMO MODE (LOCAL)";
-            dbStatusEl.className = "status-badge demo";
+            dbStatusEl.innerHTML = `<span class="pulse-dot"></span>DEMO DB`;
+            dbStatusEl.className = "status-pill demo";
         }
 
-        // ==========================================
-        // 4. MEMUAT MODEL AI (COCO-SSD)
-        // ==========================================
         async function loadModel() {
             try {
-                // Menggunakan base mobilenet_v2 untuk tingkat akurasi yang lebih tinggi
                 model = await cocoSsd.load({ base: 'mobilenet_v2' });
                 overlayMsg.style.display = 'none';
-                aiStatusEl.textContent = "AI: READY";
-                aiStatusEl.className = "status-badge online";
+                aiStatusEl.innerHTML = `<span class="pulse-dot"></span>AI READY`;
+                aiStatusEl.className = "status-pill online";
                 btnAI.disabled = false;
-                console.log("Model AI berhasil dimuat:", model);
             } catch (err) {
-                console.error("Gagal memuat model:", err);
                 overlayText.textContent = "Gagal Memuat Model AI";
-                overlaySubtext.textContent = "Pastikan koneksi internet aktif saat membuka halaman.";
+                overlaySubtext.textContent = "Pastikan Anda terhubung ke internet.";
             }
         }
 
-        // ==========================================
-        // 5. KONTROL KAMERA
-        // ==========================================
         async function startCamera() {
             try {
                 overlayMsg.style.display = 'flex';
@@ -415,15 +664,12 @@
                 overlaySubtext.textContent = '';
 
                 const stream = await navigator.mediaDevices.getUserMedia({
-                    video: {
-                        facingMode: 'environment',
-                        width: { ideal: 1280 },
-                        height: { ideal: 720 }
-                    },
+                    video: { facingMode: facingMode, width: { ideal: 1280 }, height: { ideal: 720 } },
                     audio: false
                 });
 
                 video.srcObject = stream;
+                videoTrack = stream.getVideoTracks()[0];
 
                 await new Promise(resolve => {
                     video.onloadedmetadata = () => {
@@ -434,11 +680,12 @@
                 });
 
                 isCameraOn = true;
+                txtCamera.textContent = "Matikan";
+                btnCamera.classList.add('btn-danger');
                 if (model) overlayMsg.style.display = 'none';
             } catch (err) {
-                console.error("Gagal akses kamera:", err);
                 overlayText.textContent = "Gagal Akses Kamera";
-                overlaySubtext.textContent = "Pastikan izin kamera diberikan di browser.";
+                overlaySubtext.textContent = "Beri izin kamera di browser.";
             }
         }
 
@@ -446,108 +693,98 @@
             if (video.srcObject) {
                 video.srcObject.getTracks().forEach(track => track.stop());
                 video.srcObject = null;
+                videoTrack = null;
             }
             isCameraOn = false;
             isAIDetecting = false;
-            btnAI.textContent = "Start AI";
-            btnAI.className = "btn-ai btn-success";
+            torchOn = false;
+            txtCamera.textContent = "Kamera";
+            btnCamera.classList.remove('btn-danger');
+            txtAI.textContent = "Mulai AI";
+            btnAI.classList.remove('btn-danger');
             ctx.clearRect(0, 0, canvas.width, canvas.height);
+            fpsCounter.textContent = "0 FPS";
         }
 
-        // ==========================================
-        // 6. SIMPAN HASIL DETEKSI KE DATABASE
-        // ==========================================
         async function saveToDatabase(data) {
             try {
                 const itemsString = data.map(d => `${d.displayName} (${d.confidence}%)`).join(', ');
-
                 const payload = {
                     items: itemsString,
                     count: data.length,
-                    device_id: 'BROWSER-TEST',
                     timestamp: isMockMode ? new Date().toISOString() : serverTimestamp()
                 };
 
-                if (isMockMode) {
-                    await collectionRef.add(payload);
-                } else {
-                    await addDoc(collectionRef, payload);
-                }
-            } catch (err) {
-                console.error("Gagal menyimpan data:", err);
-            }
+                if (isMockMode) await collectionRef.add(payload);
+                else await addDoc(collectionRef, payload);
+
+                playDetectionBeep();
+                speakDetectedObject(data[0].displayName);
+                if (navigator.vibrate) navigator.vibrate(40);
+            } catch (err) {}
         }
 
-        // ==========================================
-        // 7. REAL-TIME LISTENER ON SNAPSHOT
-        // ==========================================
         function listenToDatabase() {
             let handleSnapshot = (snapshot) => {
                 const dataList = document.getElementById('data-list');
                 dataList.innerHTML = '';
-
-                let count = 0;
                 const docs = isMockMode ? snapshot : snapshot.docs;
 
                 if (docs && docs.length > 0) {
                     docs.forEach(doc => {
-                        count++;
                         const data = isMockMode ? doc : doc.data();
-
-                        let timeStr;
+                        let timeStr = 'Baru saja';
                         if (data.timestamp) {
                             const date = isMockMode ? new Date(data.timestamp) : data.timestamp.toDate();
-                            timeStr = date ? date.toLocaleTimeString('id-ID') : 'Baru saja';
-                        } else {
-                            timeStr = 'Baru saja';
+                            if (date) timeStr = date.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
                         }
 
                         const div = document.createElement('div');
                         div.className = 'log-item';
                         div.innerHTML = `
-                            <span class="time">${timeStr}</span>
-                            <span class="items">${data.items || 'Objek terdeteksi'}</span>
+                            <div>
+                                <div class="log-item-time">${timeStr}</div>
+                                <div class="log-item-text">${data.items || 'Objek Terdeteksi'}</div>
+                            </div>
+                            <span class="log-tag">${data.count || 1} Item</span>
                         `;
                         dataList.appendChild(div);
                     });
-                }
-
-                document.getElementById('log-count').textContent = `${count} items`;
-
-                if (count === 0) {
-                    dataList.innerHTML = '<div class="empty-state">Belum ada objek terdeteksi</div>';
+                } else {
+                    dataList.innerHTML = `<div class="empty-state">Belum ada hasil pemindaian</div>`;
                 }
             };
 
-            if (isMockMode) {
-                collectionRef.onSnapshot(handleSnapshot);
-            } else {
-                const q = query(collectionRef, orderBy("timestamp", "desc"), limit(30));
+            if (isMockMode) collectionRef.onSnapshot(handleSnapshot);
+            else {
+                const q = query(collectionRef, orderBy("timestamp", "desc"), limit(25));
                 onSnapshot(q, handleSnapshot);
             }
         }
 
-        // ==========================================
-        // 8. DETECTION LOOP & BOUNDING BOX
-        // ==========================================
         async function detectLoop() {
             if (!isAIDetecting || !isCameraOn) return;
 
-            // Deteksi frame dari video
+            frameCount++;
+            const now = Date.now();
+            if (now - lastFpsTime >= 1000) {
+                fpsCounter.textContent = `${frameCount} FPS`;
+                frameCount = 0;
+                lastFpsTime = now;
+            }
+
             const predictions = await model.detect(video);
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
             let detectedTargets = [];
+            const targetList = CATEGORY_MAP[activeCategory];
 
             predictions.forEach(pred => {
                 const [x, y, w, h] = pred.bbox;
                 const confidence = pred.score;
-                
-                // Jika TARGET_CLASSES diatur, filter sesuai target. Jika tidak, izinkan semua.
-                const isTarget = TARGET_CLASSES.length === 0 || TARGET_CLASSES.includes(pred.class);
+                const isTarget = targetList.length === 0 || targetList.includes(pred.class);
 
-                // Menggunakan threshold confidence > 35% agar benda lebih mudah terdeteksi
-                if (isTarget && confidence > 0.35) {
+                if (isTarget && confidence > 0.30) {
                     const displayName = CLASS_TRANSLATIONS[pred.class] || pred.class;
 
                     detectedTargets.push({
@@ -556,26 +793,23 @@
                         confidence: parseFloat((confidence * 100).toFixed(0))
                     });
 
-                    // Gambar Kotak Penanda
                     ctx.strokeStyle = '#10b981';
                     ctx.lineWidth = 3;
                     ctx.strokeRect(x, y, w, h);
 
-                    // Gambar Label Nama Benda
                     const label = `${displayName} ${(confidence * 100).toFixed(0)}%`;
                     ctx.fillStyle = '#10b981';
+                    ctx.font = '700 12px "Plus Jakarta Sans", sans-serif';
                     const textWidth = ctx.measureText(label).width;
                     
-                    const labelY = y > 25 ? y - 25 : y;
-                    ctx.fillRect(x, labelY, textWidth + 10, 25);
+                    const labelY = y > 24 ? y - 24 : y;
+                    ctx.fillRect(x, labelY, textWidth + 12, 24);
 
-                    ctx.fillStyle = '#ffffff';
-                    ctx.font = 'bold 13px sans-serif';
-                    ctx.fillText(label, x + 5, labelY + 17);
+                    ctx.fillStyle = '#000000';
+                    ctx.fillText(label, x + 6, labelY + 16);
                 }
             });
 
-            // THROTTLING: Simpan ke database jika ada objek terdeteksi & sudah lewat 3 detik
             if (detectedTargets.length > 0 && (Date.now() - lastSaveTime > SAVE_THROTTLE_MS)) {
                 saveToDatabase(detectedTargets);
                 lastSaveTime = Date.now();
@@ -584,38 +818,112 @@
             requestAnimationFrame(detectLoop);
         }
 
-        // ==========================================
-        // 9. INISIALISASI APLIKASI
-        // ==========================================
-        function initApp() {
-            listenToDatabase();
-            loadModel();
-        }
+        // Shutter Button (Capture Foto Snapshot)
+        document.getElementById('btn-shutter').addEventListener('click', () => {
+            if (!isCameraOn) return alert("Nyalakan kamera terlebih dahulu!");
 
-        // Event Listeners
-        document.getElementById('btn-start').addEventListener('click', startCamera);
-        document.getElementById('btn-stop').addEventListener('click', stopCamera);
+            const flash = document.getElementById('flash-overlay');
+            flash.style.opacity = '0.85';
+            setTimeout(() => flash.style.opacity = '0', 150);
+
+            if (navigator.vibrate) navigator.vibrate(60);
+
+            const mergeCanvas = document.createElement('canvas');
+            mergeCanvas.width = canvas.width;
+            mergeCanvas.height = canvas.height;
+            const mCtx = mergeCanvas.getContext('2d');
+
+            mCtx.drawImage(video, 0, 0, mergeCanvas.width, mergeCanvas.height);
+            mCtx.drawImage(canvas, 0, 0, mergeCanvas.width, mergeCanvas.height);
+
+            const link = document.createElement('a');
+            link.download = `object-scan-${Date.now()}.png`;
+            link.href = mergeCanvas.toDataURL('image/png');
+            link.click();
+        });
+
+        // Zoom Camera Toggle
+        document.getElementById('btn-zoom-toggle').addEventListener('click', () => {
+            zoomLevel = zoomLevel === 1.0 ? 2.0 : 1.0;
+            video.style.transform = `scale(${zoomLevel})`;
+            document.getElementById('btn-zoom-toggle').textContent = `${zoomLevel.toFixed(1)}x`;
+        });
+
+        btnCamera.addEventListener('click', () => {
+            if (isCameraOn) stopCamera();
+            else startCamera();
+        });
 
         btnAI.addEventListener('click', () => {
-            if (!isCameraOn) {
-                alert("Nyalakan kamera terlebih dahulu!");
-                return;
-            }
+            if (!isCameraOn) return alert("Nyalakan kamera terlebih dahulu!");
+            if (audioCtx.state === 'suspended') audioCtx.resume();
 
-            if (!isAIDetecting) {
-                isAIDetecting = true;
-                btnAI.textContent = "Stop AI";
-                btnAI.className = "btn-ai btn-danger";
+            isAIDetecting = !isAIDetecting;
+            if (isAIDetecting) {
+                txtAI.textContent = "Berhenti";
+                btnAI.classList.add('btn-danger');
                 detectLoop();
             } else {
-                isAIDetecting = false;
-                btnAI.textContent = "Start AI";
-                btnAI.className = "btn-ai btn-success";
+                txtAI.textContent = "Mulai AI";
+                btnAI.classList.remove('btn-danger');
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
             }
         });
 
-        document.addEventListener('DOMContentLoaded', initApp);
+        document.getElementById('btn-flip-camera').addEventListener('click', () => {
+            facingMode = (facingMode === 'environment') ? 'user' : 'environment';
+            if (isCameraOn) { stopCamera(); startCamera(); }
+        });
+
+        // Toggle Senter / Torch
+        document.getElementById('btn-torch').addEventListener('click', async () => {
+            if (!videoTrack) return;
+            try {
+                const capabilities = videoTrack.getCapabilities();
+                if (capabilities.torch) {
+                    torchOn = !torchOn;
+                    await videoTrack.applyConstraints({ advanced: [{ torch: torchOn }] });
+                    const icon = document.getElementById('torch-icon');
+                    icon.style.color = torchOn ? '#fbbf24' : '#ffffff';
+                } else {
+                    alert("Senter tidak didukung pada perangkat ini.");
+                }
+            } catch (err) {
+                alert("Gagal mengaktifkan senter.");
+            }
+        });
+
+        // Toggle Text-to-Speech Voice
+        document.getElementById('btn-tts').addEventListener('click', () => {
+            ttsEnabled = !ttsEnabled;
+            const icon = document.getElementById('tts-icon');
+            icon.style.color = ttsEnabled ? '#34d399' : '#ffffff';
+        });
+
+        document.getElementById('btn-toggle-sound').addEventListener('click', () => {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            soundEnabled = !soundEnabled;
+            const icon = document.getElementById('sound-icon');
+            icon.className = soundEnabled ? 'fa-solid fa-volume-high' : 'fa-solid fa-volume-xmark';
+            icon.style.color = soundEnabled ? '#34d399' : '#ffffff';
+        });
+
+        document.querySelectorAll('.chip').forEach(chip => {
+            chip.addEventListener('click', (e) => {
+                document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+                e.currentTarget.classList.add('active');
+                activeCategory = e.currentTarget.getAttribute('data-filter');
+            });
+        });
+
+        document.getElementById('btn-clear-logs').addEventListener('click', () => {
+            if (isMockMode) collectionRef.clear();
+        });
+
+        document.addEventListener('DOMContentLoaded', () => {
+            listenToDatabase();
+            loadModel();
+        });
     </script>
 </body>
 </html>
