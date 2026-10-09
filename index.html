@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>CamerAI</title>
+    <title>Deteksi Object</title>
 
     <link rel="icon" href="data:,">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -137,11 +137,10 @@
             width: 100%;
         }
 
-        /* Tampilan Kamera Memenuhi Layar HP (Native Camera Ratio 9:16) */
         .camera-card {
             position: relative;
             width: 100%;
-            aspect-ratio: 9 / 14; /* Proporsi jangkung mendekati full screen HP */
+            aspect-ratio: 9 / 14;
             max-height: 520px;
             background: #000;
             border-radius: var(--radius-lg);
@@ -149,6 +148,7 @@
             border: 1px solid var(--bg-card-border);
             box-shadow: 0 12px 36px rgba(0, 0, 0, 0.7);
             touch-action: none;
+            transition: aspect-ratio 0.3s ease;
         }
 
         #video {
@@ -203,8 +203,8 @@
         }
 
         .circle-btn {
-            width: 40px;
-            height: 40px;
+            width: 38px;
+            height: 38px;
             border-radius: 50%;
             background: rgba(0, 0, 0, 0.65);
             backdrop-filter: blur(8px);
@@ -220,7 +220,6 @@
 
         .circle-btn:active { transform: scale(0.90); }
 
-        /* Zoom Badge Button */
         .zoom-btn {
             background: rgba(0, 0, 0, 0.65);
             backdrop-filter: blur(8px);
@@ -233,7 +232,6 @@
             cursor: pointer;
         }
 
-        /* Shutter Snapshot Button */
         .shutter-btn {
             width: 52px;
             height: 52px;
@@ -251,7 +249,6 @@
         }
         .shutter-btn:active { transform: scale(0.88); }
 
-        /* Flash Snap Effect */
         .camera-flash-effect {
             position: absolute;
             inset: 0;
@@ -287,6 +284,104 @@
         }
 
         @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Modal Settings Sheet */
+        .settings-modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(8px);
+            display: flex;
+            justify-content: center;
+            align-items: flex-end;
+            z-index: 100;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.25s ease;
+        }
+
+        .settings-modal.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .settings-card {
+            width: 100%;
+            max-width: 480px;
+            background: #121620;
+            border-top-left-radius: 24px;
+            border-top-right-radius: 24px;
+            border: 1px solid var(--bg-card-border);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            transform: translateY(100%);
+            transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .settings-modal.active .settings-card {
+            transform: translateY(0);
+        }
+
+        .settings-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--bg-card-border);
+            padding-bottom: 10px;
+        }
+
+        .settings-title {
+            font-size: 15px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .settings-option {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .settings-label {
+            font-size: 12px;
+            color: var(--text-sub);
+            font-weight: 600;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .settings-control {
+            display: flex;
+            gap: 8px;
+        }
+
+        .select-btn {
+            flex: 1;
+            padding: 8px;
+            border-radius: var(--radius-md);
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--bg-card-border);
+            color: var(--text-main);
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            text-align: center;
+        }
+
+        .select-btn.active {
+            background: rgba(16, 185, 129, 0.2);
+            border-color: var(--accent-green);
+            color: #34d399;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            accent-color: var(--accent-green);
+        }
 
         .dashboard-panel {
             display: flex;
@@ -380,14 +475,20 @@
         }
 
         .clear-btn {
-            background: none;
-            border: none;
-            color: var(--text-sub);
+            background: rgba(239, 68, 68, 0.15);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #f87171;
             font-size: 11px;
-            font-weight: 600;
-            padding: 4px 8px;
+            font-weight: 700;
+            padding: 4px 10px;
+            border-radius: 8px;
             cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            transition: background 0.2s;
         }
+        .clear-btn:active { background: rgba(239, 68, 68, 0.3); }
 
         #data-list {
             display: flex;
@@ -419,27 +520,28 @@
 <body>
 
     <div class="app-container">
-        <!-- Header -->
         <header class="app-header">
             <div class="brand-logo">
                 <div class="brand-icon"><i class="fa-solid fa-camera"></i></div>
-                <div class="brand-title">CamerAI</div>
+                <div class="brand-title">CameraAI</div>
             </div>
             <div class="status-pill-group">
                 <div id="db-status" class="status-pill demo"><span class="pulse-dot"></span>DEMO DB</div>
-                <div id="ai-status" class="status-pill demo"><span class="pulse-dot"></span>Menghubungkan AI</div>
+                <div id="ai-status" class="status-pill demo"><span class="pulse-dot"></span>AI INIT</div>
             </div>
         </header>
 
         <div class="main-layout">
-            <!-- Kamera Viewport Smartphone -->
             <div class="camera-card" id="camera-frame">
                 <div class="camera-flash-effect" id="flash-overlay"></div>
 
-                <!-- Kontrol Atas Kamera -->
+                <!-- Tombol Pengaturan (Ikon Gerigi) dikembalikan di sini -->
                 <div class="camera-overlay-top">
                     <div class="fps-badge" id="fps-counter">0 FPS</div>
-                    <div style="display: flex; gap: 8px;">
+                    <div style="display: flex; gap: 6px;">
+                        <button class="circle-btn" id="btn-settings" title="Pengaturan Kamera">
+                            <i class="fa-solid fa-gear"></i>
+                        </button>
                         <button class="circle-btn" id="btn-torch" title="Senter">
                             <i class="fa-solid fa-bolt" id="torch-icon"></i>
                         </button>
@@ -455,7 +557,6 @@
                     </div>
                 </div>
 
-                <!-- Kontrol Bawah Kamera (Zoom & Shutter Snapshot) -->
                 <div class="camera-overlay-bottom">
                     <button class="zoom-btn" id="btn-zoom-toggle">1.0x</button>
                     <button class="shutter-btn" id="btn-shutter" title="Ambil Foto Snapshot">
@@ -473,7 +574,6 @@
                 </div>
             </div>
 
-            <!-- Panel Tombol & Kontrol -->
             <div class="dashboard-panel">
                 <div class="action-bar">
                     <button class="btn btn-camera" id="btn-camera">
@@ -482,7 +582,7 @@
                     </button>
                     <button class="btn btn-ai" id="btn-ai" disabled>
                         <i class="fa-solid fa-wand-magic-sparkles"></i>
-                        <span id="txt-ai">Scan AI</span>
+                        <span id="txt-ai">Mulai AI</span>
                     </button>
                 </div>
 
@@ -498,7 +598,7 @@
                         <div class="feed-title">
                             <i class="fa-solid fa-list-check" style="color: var(--accent-green);"></i> Log Pemindaian Real-Time
                         </div>
-                        <button class="clear-btn" id="btn-clear-logs"><i class="fa-solid fa-trash-can"></i> Hapus</button>
+                        <button class="clear-btn" id="btn-clear-logs"><i class="fa-solid fa-trash-can"></i> Hapus Log</button>
                     </div>
                     <div id="data-list">
                         <div class="empty-state">
@@ -511,12 +611,45 @@
         </div>
     </div>
 
-    <!-- Script JavaScript / Logic & Feature Integrations -->
+    <!-- Modal Window Settings Kamera -->
+    <div class="settings-modal" id="modal-settings">
+        <div class="settings-card">
+            <div class="settings-header">
+                <div class="settings-title"><i class="fa-solid fa-sliders" style="color: var(--accent-green);"></i> Pengaturan Kamera & AI</div>
+                <button class="circle-btn" id="btn-close-settings" style="width: 30px; height: 30px; font-size: 12px;"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+
+            <div class="settings-option">
+                <div class="settings-label">
+                    <span>Akurasi Minimal AI (Threshold)</span>
+                    <span id="label-threshold">30%</span>
+                </div>
+                <input type="range" id="input-threshold" min="30" max="90" step="5" value="30">
+            </div>
+
+            <div class="settings-option">
+                <div class="settings-label">Rasio Ukuran Kamera</div>
+                <div class="settings-control">
+                    <button class="select-btn active" data-aspect="9/14">Full (9:14)</button>
+                    <button class="select-btn" data-aspect="3/4">Standar (3:4)</button>
+                    <button class="select-btn" data-aspect="1/1">Kotak (1:1)</button>
+                </div>
+            </div>
+
+            <div class="settings-option">
+                <div class="settings-label">Tampilkan Bounding Box</div>
+                <div class="settings-control">
+                    <button class="select-btn active" id="btn-box-on">Aktif</button>
+                    <button class="select-btn" id="btn-box-off">Sembunyikan</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-        import { getFirestore, collection, addDoc, query, orderBy, limit, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, query, orderBy, limit, onSnapshot, serverTimestamp, getDocs, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-        // Mock Firestore untuk Offline / Demo Storage
         class MockFirestore {
             constructor() {
                 this.data = JSON.parse(localStorage.getItem('mock_inventory_db') || '[]');
@@ -532,7 +665,12 @@
                 return Promise.resolve();
             }
             onSnapshot(cb) { this.listeners.push(cb); cb(this.data); return () => {}; }
-            clear() { this.data = []; localStorage.removeItem('mock_inventory_db'); this.listeners.forEach(cb => cb(this.data)); }
+            async clear() {
+                this.data = [];
+                localStorage.removeItem('mock_inventory_db');
+                this.listeners.forEach(cb => cb(this.data));
+                return Promise.resolve();
+            }
         }
 
         let model = null;
@@ -545,8 +683,12 @@
         let videoTrack = null;
         let activeCategory = 'all';
 
+        let minConfidence = 0.30;
+        let showBoundingBox = true;
+
         let zoomLevel = 1.0;
         let lastSpeechTime = 0;
+        let currentDetections = [];
 
         let lastSaveTime = 0;
         const SAVE_THROTTLE_MS = 3000;
@@ -602,11 +744,10 @@
             } catch (e) {}
         }
 
-        // Fitur Suara Text-To-Speech Objek
         function speakDetectedObject(text) {
             if (!ttsEnabled || !('speechSynthesis' in window)) return;
             const now = Date.now();
-            if (now - lastSpeechTime < 4000) return; // Mencegah penumpukan suara
+            if (now - lastSpeechTime < 4000) return;
             
             window.speechSynthesis.cancel();
             const utterance = new SpeechSynthesisUtterance(`${text} terdeteksi`);
@@ -699,6 +840,7 @@
             isCameraOn = false;
             isAIDetecting = false;
             torchOn = false;
+            currentDetections = [];
             txtCamera.textContent = "Kamera";
             btnCamera.classList.remove('btn-danger');
             txtAI.textContent = "Mulai AI";
@@ -778,6 +920,7 @@
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
             let detectedTargets = [];
+            currentDetections = [];
             const targetList = CATEGORY_MAP[activeCategory];
 
             predictions.forEach(pred => {
@@ -785,29 +928,35 @@
                 const confidence = pred.score;
                 const isTarget = targetList.length === 0 || targetList.includes(pred.class);
 
-                if (isTarget && confidence > 0.30) {
+                if (isTarget && confidence >= minConfidence) {
                     const displayName = CLASS_TRANSLATIONS[pred.class] || pred.class;
 
-                    detectedTargets.push({
+                    const detObj = {
                         class: pred.class,
                         displayName: displayName,
-                        confidence: parseFloat((confidence * 100).toFixed(0))
-                    });
+                        confidence: parseFloat((confidence * 100).toFixed(0)),
+                        bbox: [x, y, w, h]
+                    };
 
-                    ctx.strokeStyle = '#10b981';
-                    ctx.lineWidth = 3;
-                    ctx.strokeRect(x, y, w, h);
+                    detectedTargets.push(detObj);
+                    currentDetections.push(detObj);
 
-                    const label = `${displayName} ${(confidence * 100).toFixed(0)}%`;
-                    ctx.fillStyle = '#10b981';
-                    ctx.font = '700 12px "Plus Jakarta Sans", sans-serif';
-                    const textWidth = ctx.measureText(label).width;
-                    
-                    const labelY = y > 24 ? y - 24 : y;
-                    ctx.fillRect(x, labelY, textWidth + 12, 24);
+                    if (showBoundingBox) {
+                        ctx.strokeStyle = '#10b981';
+                        ctx.lineWidth = 3;
+                        ctx.strokeRect(x, y, w, h);
 
-                    ctx.fillStyle = '#000000';
-                    ctx.fillText(label, x + 6, labelY + 16);
+                        const label = `${displayName} ${(confidence * 100).toFixed(0)}%`;
+                        ctx.fillStyle = '#10b981';
+                        ctx.font = '700 12px "Plus Jakarta Sans", sans-serif';
+                        const textWidth = ctx.measureText(label).width;
+                        
+                        const labelY = y > 24 ? y - 24 : y;
+                        ctx.fillRect(x, labelY, textWidth + 12, 24);
+
+                        ctx.fillStyle = '#000000';
+                        ctx.fillText(label, x + 6, labelY + 16);
+                    }
                 }
             });
 
@@ -819,7 +968,37 @@
             requestAnimationFrame(detectLoop);
         }
 
-        // Shutter Button (Capture Foto Snapshot)
+        // Modal Settings Handling
+        const modalSettings = document.getElementById('modal-settings');
+        document.getElementById('btn-settings').addEventListener('click', () => modalSettings.classList.add('active'));
+        document.getElementById('btn-close-settings').addEventListener('click', () => modalSettings.classList.remove('active'));
+
+        document.getElementById('input-threshold').addEventListener('input', (e) => {
+            minConfidence = parseFloat(e.target.value) / 100;
+            document.getElementById('label-threshold').textContent = `${e.target.value}%`;
+        });
+
+        document.querySelectorAll('[data-aspect]').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                document.querySelectorAll('[data-aspect]').forEach(b => b.classList.remove('active'));
+                e.currentTarget.classList.add('active');
+                document.getElementById('camera-frame').style.aspectRatio = e.currentTarget.getAttribute('data-aspect');
+            });
+        });
+
+        document.getElementById('btn-box-on').addEventListener('click', (e) => {
+            showBoundingBox = true;
+            document.getElementById('btn-box-off').classList.remove('active');
+            e.currentTarget.classList.add('active');
+        });
+
+        document.getElementById('btn-box-off').addEventListener('click', (e) => {
+            showBoundingBox = false;
+            document.getElementById('btn-box-on').classList.remove('active');
+            e.currentTarget.classList.add('active');
+        });
+
+        // Snapshot Picture
         document.getElementById('btn-shutter').addEventListener('click', () => {
             if (!isCameraOn) return alert("Nyalakan kamera terlebih dahulu!");
 
@@ -830,12 +1009,31 @@
             if (navigator.vibrate) navigator.vibrate(60);
 
             const mergeCanvas = document.createElement('canvas');
-            mergeCanvas.width = canvas.width;
-            mergeCanvas.height = canvas.height;
+            mergeCanvas.width = video.videoWidth || canvas.width;
+            mergeCanvas.height = video.videoHeight || canvas.height;
             const mCtx = mergeCanvas.getContext('2d');
 
             mCtx.drawImage(video, 0, 0, mergeCanvas.width, mergeCanvas.height);
-            mCtx.drawImage(canvas, 0, 0, mergeCanvas.width, mergeCanvas.height);
+
+            if (currentDetections.length > 0 && showBoundingBox) {
+                currentDetections.forEach(det => {
+                    const [x, y, w, h] = det.bbox;
+                    mCtx.strokeStyle = '#10b981';
+                    mCtx.lineWidth = 4;
+                    mCtx.strokeRect(x, y, w, h);
+
+                    const label = `${det.displayName} ${det.confidence}%`;
+                    mCtx.font = '700 14px "Plus Jakarta Sans", sans-serif';
+                    const textWidth = mCtx.measureText(label).width;
+                    const labelY = y > 28 ? y - 28 : y;
+
+                    mCtx.fillStyle = '#10b981';
+                    mCtx.fillRect(x, labelY, textWidth + 14, 28);
+
+                    mCtx.fillStyle = '#000000';
+                    mCtx.fillText(label, x + 7, labelY + 19);
+                });
+            }
 
             const link = document.createElement('a');
             link.download = `object-scan-${Date.now()}.png`;
@@ -843,7 +1041,25 @@
             link.click();
         });
 
-        // Zoom Camera Toggle
+        // Delete Database Logs
+        document.getElementById('btn-clear-logs').addEventListener('click', async () => {
+            if (!confirm("Apakah Anda yakin ingin menghapus seluruh log pemindaian?")) return;
+
+            try {
+                if (isMockMode) {
+                    await collectionRef.clear();
+                } else {
+                    const snapshot = await getDocs(collectionRef);
+                    const deletePromises = snapshot.docs.map(doc => deleteDoc(doc.ref));
+                    await Promise.all(deletePromises);
+                }
+
+                if (navigator.vibrate) navigator.vibrate([30, 30, 30]);
+            } catch (err) {
+                alert("Gagal menghapus log database.");
+            }
+        });
+
         document.getElementById('btn-zoom-toggle').addEventListener('click', () => {
             zoomLevel = zoomLevel === 1.0 ? 2.0 : 1.0;
             video.style.transform = `scale(${zoomLevel})`;
@@ -868,6 +1084,7 @@
                 txtAI.textContent = "Mulai AI";
                 btnAI.classList.remove('btn-danger');
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
+                currentDetections = [];
             }
         });
 
@@ -876,7 +1093,6 @@
             if (isCameraOn) { stopCamera(); startCamera(); }
         });
 
-        // Toggle Senter / Torch
         document.getElementById('btn-torch').addEventListener('click', async () => {
             if (!videoTrack) return;
             try {
@@ -894,7 +1110,6 @@
             }
         });
 
-        // Toggle Text-to-Speech Voice
         document.getElementById('btn-tts').addEventListener('click', () => {
             ttsEnabled = !ttsEnabled;
             const icon = document.getElementById('tts-icon');
@@ -915,10 +1130,6 @@
                 e.currentTarget.classList.add('active');
                 activeCategory = e.currentTarget.getAttribute('data-filter');
             });
-        });
-
-        document.getElementById('btn-clear-logs').addEventListener('click', () => {
-            if (isMockMode) collectionRef.clear();
         });
 
         document.addEventListener('DOMContentLoaded', () => {
